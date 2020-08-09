@@ -73,38 +73,97 @@ const FoodDetails: React.FC = () => {
 
   useEffect(() => {
     async function loadFood(): Promise<void> {
-      // Load a specific food with extras based on routeParams id
+      const response = await api.get<Food>(`foods/${routeParams.id}`);
+      setFood({
+        ...response.data,
+        formattedPrice: formatValue(response.data.price),
+      });
+      const getExtras = response.data.extras.map(extra => {
+        return {
+          ...extra,
+          quantity: 0,
+        };
+      });
+
+      setExtras(getExtras);
     }
 
     loadFood();
   }, [routeParams]);
 
   function handleIncrementExtra(id: number): void {
-    // Increment extra quantity
+    setExtras(state => {
+      const incrementedExtras = state.map(extraState => {
+        if (extraState.id === id) {
+          return { ...extraState, quantity: extraState.quantity + 1 };
+        }
+
+        return extraState;
+      });
+
+      return incrementedExtras;
+    });
   }
 
   function handleDecrementExtra(id: number): void {
-    // Decrement extra quantity
+    setExtras(state => {
+      const decrementedExtras = state.map(extraState => {
+        if (extraState.id === id) {
+          return { ...extraState, quantity: extraState.quantity - 1 };
+        }
+
+        return extraState;
+      });
+
+      return decrementedExtras;
+    });
   }
 
   function handleIncrementFood(): void {
-    // Increment food quantity
+    setFoodQuantity(foodQuantity + 1);
   }
 
   function handleDecrementFood(): void {
-    // Decrement food quantity
+    if (foodQuantity - 1 >= 1) {
+      setFoodQuantity(foodQuantity - 1);
+    }
   }
 
   const toggleFavorite = useCallback(() => {
-    // Toggle if food is favorite or not
+    if (isFavorite) {
+      api.delete(`favorites/${food.id}`).then(() => setIsFavorite(!isFavorite));
+    } else {
+      api.post('favorites', food).then(() => setIsFavorite(!isFavorite));
+    }
   }, [isFavorite, food]);
 
   const cartTotal = useMemo(() => {
-    // Calculate cartTotal
+    const { amount } = extras.reduce(
+      (accumulator, extra) => {
+        accumulator.amount += extra.quantity * extra.value;
+        return accumulator;
+      },
+      {
+        amount: food.price * foodQuantity,
+      },
+    );
+
+    return formatValue(amount);
   }, [extras, food, foodQuantity]);
 
   async function handleFinishOrder(): Promise<void> {
-    // Finish the order and save on the API
+    const orderProduct = {
+      product_id: food.id,
+      name: food.name,
+      description: food.description,
+      price: food.price,
+      thumbnail_url: food.image_url,
+      extras,
+    };
+
+    await api.post('orders', orderProduct);
+
+    navigation.navigate('DashboardStack');
   }
 
   // Calculate the correct icon name
